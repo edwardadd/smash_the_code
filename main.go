@@ -824,9 +824,9 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 	//     node.grid.print("Initial")
 	//     tempGrid.print("altered")
 	// }
-// 	chainExpected := 4
-	chainScore := chainCount //1 - (chainCount - chainExpected) * (chainCount - chainExpected)
-	actualScore = chainScore * 100 + averageChainBlock * 50 //+ blocksAboveThree
+	chainExpected := 4
+	chainScore := 1 - (chainCount - chainExpected) * (chainCount - chainExpected)
+	actualScore = chainScore * 100 + averageChainBlock * 50 // + blocksAboveThree
 	finalScore = actualScore + heightBonus + (averageNeighbouringBlockCount - 3)
 
 	// Update node
