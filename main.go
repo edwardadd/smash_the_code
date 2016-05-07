@@ -5,13 +5,13 @@ import (
 	"os"
 	"math/rand"
 	"errors"
-	"time"
+	//"time"
 )
 
 const (
 	GRID_WIDTH int = 6
 	GRID_HEIGHT int = 12
-	SAMPLES int = 2500
+	SAMPLES int = 2000
 	DEPTH int = 8
 	EMPTY_SPACE = '.' - 48
 )
@@ -38,22 +38,25 @@ var colourString [5]string = [5]string{
 
 var g_invalidate bool = false
 
+var g_chainDepression = 3
+
 type Grid [GRID_WIDTH * GRID_HEIGHT]int
 
 type Node struct {
-	choice     int
-	grid       Grid
-	score      int
-	chainCount int
-	turn       int
-	position   int
-	rotation   int
+	choice       int
+	grid         Grid
+	score        int
+	chainCount   int
+	turn         int
+	turnExplored int
+	position     int
+	rotation     int
 
-	nodes      [22]*Node
-	parent     *Node
-	err        error
-	message    string
-	invalid    bool
+	nodes        [22]*Node
+	parent       *Node
+	err          error
+	message      string
+	invalid      bool
 }
 
 type Stats struct {
@@ -96,18 +99,33 @@ func (game *Game)gameLoop() {
 	rand.Seed(643)
 
 	for {
-		parseStart := time.Now()
+		//parseStart := time.Now()
 		parseNextBlocks(&game.nextColours)
 		parseGrid(&game.playerGrid)
 		parseGrid(&game.cpuGrid)
-		parseElapsed := time.Since(parseStart)
-		fmt.Fprintln(os.Stderr, "Parse Time: ", parseElapsed)
+		//parseElapsed := time.Since(parseStart)
+		//fmt.Fprintln(os.Stderr, "Parse Time: ", parseElapsed)
+
+		if game.turn == 0 {
+			game.node.grid = game.playerGrid
+		}
 
 		// fmt.Fprintln(os.Stderr, "Debug messages...")
+
+		if game.node.chainCount > 0 {
+			g_chainDepression --
+
+			if g_chainDepression == 0 {
+				g_chainDepression = 4
+			}
+		}
+
+        //game.node.grid.print("Previous Grid")
 
 		// game.analyseNextColours()
 		g_invalidate = skullAttack(&game.node.grid, &game.playerGrid)
 		if g_invalidate {
+			g_chainDepression = 2
 			game.node.grid = game.playerGrid
 
 			for i := 0; i < 22; i++ {
@@ -117,21 +135,20 @@ func (game *Game)gameLoop() {
 			}
 		}
 
-		 //game.playerGrid.print("Current Grid")
+		//game.playerGrid.print("Current Grid")
 
-		start := time.Now()
+		//start := time.Now()
 		for i := 0; i < SAMPLES; i++ {
 			explore(betterChoice(), game.node, game.turn, DEPTH, &game.nextColours, 0)
 		}
-		elapsed := time.Since(start)
-		fmt.Fprintln(os.Stderr, "Timer: ", elapsed)
+		//elapsed := time.Since(start)
+		//fmt.Fprintln(os.Stderr, "Timer: ", elapsed)
 
 
 		//printTree(game.node, 1)
 
 		//find choice with greatest score
 
-		fmt.Fprintln(os.Stderr, "Getting best score")
 		bestNode, nodeCount := game.chooseBestNode()
 
 		if bestNode != nil {
@@ -175,7 +192,7 @@ func (game *Game) chooseBestNode() (*Node, int) {
 	for n := 0; n < 22; n++ {
 		var node *Node = game.node.nodes[n]
 
-		if node == nil || node.err != nil {
+		if node == nil || node.err != nil || node.invalid {
 			continue
 		}
 
@@ -234,21 +251,15 @@ func skullAttack(oldGrid *Grid, newGrid *Grid) bool {
 	//oldGrid.print("Last predicted:")
 	//newGrid.print("Current state:")
 
-	var diff Grid = *oldGrid
-
-	for i := 0; i < GRID_WIDTH * GRID_HEIGHT; i++ {
-		if diff[i] == newGrid[i] {
-			diff[i] = EMPTY_SPACE
-		}
-	}
-
 	var count int = 0
+
 	for i := 0; i < GRID_WIDTH * GRID_HEIGHT; i++ {
-		if diff[i] != EMPTY_SPACE {
-			count ++
+		if oldGrid[i] != newGrid[i] {
+			count++
 		}
 	}
-	return count > 2
+
+	return count > 5
 }
 
 func parseNextBlocks(nextColours *[8][2]int) {
@@ -373,11 +384,11 @@ func countConnectedBlocks(grid Grid, x int, y int, visited *Grid) (foundColour i
 	return colour, ci
 }
 
-func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (foundColour int, count int) {
+func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (int, int, int) {
 	// fmt.Fprintf(os.Stderr, "findConnectedBlocks at %d, %d\n", x, y)
 	initialIndex := x + y * GRID_WIDTH
 	if originalGrid[initialIndex] == EMPTY_SPACE || originalGrid[initialIndex] == 0 {
-		return EMPTY_SPACE, 0
+		return EMPTY_SPACE, 0, 0
 	}
 
 	//grid.print()
@@ -387,6 +398,7 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (found
 	var stack [GRID_WIDTH * GRID_HEIGHT]int
 	var si, ci int = 0, 0
 	var colour int = grid[initialIndex]
+	var skullCount int = 0
 
 	stack[si] = initialIndex
 	si++
@@ -408,8 +420,8 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (found
 
 		if index + GRID_WIDTH < GRID_WIDTH * GRID_HEIGHT && !mappedToVisit[index + GRID_WIDTH] {
 			block := grid[index + GRID_WIDTH]
-			if block == colour{
- 				stack[si] = index + GRID_WIDTH
+			if block == colour {
+				stack[si] = index + GRID_WIDTH
 				si ++
 				mappedToVisit[index + GRID_WIDTH] = true
 			}
@@ -454,6 +466,7 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (found
 				if block == 0 {
 					grid[index - GRID_WIDTH] = EMPTY_SPACE
 					visited[index - GRID_WIDTH] = 1
+					skullCount ++
 				}
 			}
 
@@ -462,6 +475,7 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (found
 				if block == 0 {
 					grid[index + GRID_WIDTH] = EMPTY_SPACE
 					visited[index + GRID_WIDTH] = 1
+					skullCount ++
 				}
 			}
 
@@ -470,6 +484,7 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (found
 				if block == 0 {
 					grid[index - 1] = EMPTY_SPACE
 					visited[index - 1] = 1
+					skullCount ++
 				}
 			}
 
@@ -478,6 +493,7 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (found
 				if block == 0 {
 					grid[index + 1] = EMPTY_SPACE
 					visited[index + 1] = 1
+					skullCount ++
 				}
 			}
 
@@ -493,7 +509,7 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (found
 		*originalGrid = grid
 	}
 
-	return colour, ci
+	return colour, ci, skullCount
 }
 
 func groupBonus(blocks int) int {
@@ -604,13 +620,21 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 		// fmt.Fprintf(os.Stderr, "Already explored Turn %d - %d, score %d\n", currentTurn, node.turn, node.nodes[choice].score)
 		newNode = node.nodes[choice]
 
-		if newNode.invalid {
+		if newNode.invalid || newNode.turnExplored != currentTurn {
 			newNode.grid = node.grid
 			newNode.score = 0
-			newNode.message = "Re-calculating..."
+			newNode.message = ""
+			if newNode.invalid {
+				newNode.message = "Damn those skulls!"
+			}
+			newNode.turnExplored = currentTurn
 
 			err := simulate(newNode, currentTurn, nextBlocks)
 			newNode.err = err
+
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 
@@ -620,9 +644,10 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 			choice : choice,
 			grid : node.grid,
 			turn : node.turn + 1,
+			turnExplored : currentTurn,
 			position : position,
 			rotation : rotation,
-			score : node.score,
+			score : 0,
 			parent : node,
 			err : nil,
 		}
@@ -631,6 +656,10 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 
 		err := simulate(newNode, currentTurn, nextBlocks)
 		newNode.err = err
+
+		if err != nil {
+			return err
+		}
 	}
 
 	switch exploreType {
@@ -650,9 +679,11 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 			//	}
 			//}
 
-			if err := explore(betterChoice(), newNode, currentTurn, maxDepth, nextBlocks, exploreType); err != nil {
-				fmt.Fprintf(os.Stderr, "Err %v\n", err)
-				explore(betterChoice(), newNode, currentTurn, maxDepth, nextBlocks, exploreType)
+			for {
+				err := explore(betterChoice(), newNode, currentTurn, maxDepth, nextBlocks, exploreType)
+				if err == nil {
+					break
+				}
 			}
 		}
 	case 1:
@@ -724,12 +755,13 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 	var averageNeighbouringBlockCount int = 0
 	var groupCount int = 0
 	var averageChainBlock int
+	var skullCountCleared int = 0
 
 	var aVisited Grid
 
 	//check for clearing at recently dropped position
-	_, count0 := findConnectedBlocks(&tempGrid, leftX, leftY, &aVisited)
-	_, count1 := findConnectedBlocks(&tempGrid, rightX, rightY, &aVisited)
+	_, count0, sk0 := findConnectedBlocks(&tempGrid, leftX, leftY, &aVisited)
+	_, count1, sk1 := findConnectedBlocks(&tempGrid, rightX, rightY, &aVisited)
 
 	// actualScore += 20 * count0 + 20 * count1
 	if count0 > 0 {
@@ -743,10 +775,12 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 	const blocksMakeClear int = 4
 	if count0 >= blocksMakeClear {
 		averageChainBlock += count0
+		skullCountCleared += sk0
 	}
 
 	if count1 >= blocksMakeClear {
 		averageChainBlock += count1
+		skullCountCleared += sk1
 	}
 
 	searchFurther := count0 >= blocksMakeClear || count1 >= blocksMakeClear
@@ -772,11 +806,12 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 				var x int = i % GRID_WIDTH
 				var y int = i / GRID_WIDTH
 				if tempGrid[i] > 0 && visited[i] == 0 {
-					c, blockCount := findConnectedBlocks(&tempGrid, x, y, &visited)
+					c, blockCount, sk := findConnectedBlocks(&tempGrid, x, y, &visited)
 					if blockCount >= 4 {
 						chainThisStep = true
 						node.message = fmt.Sprintf(" Can Clear %s", colourString[c - 1])
 						averageChainBlock += blockCount
+						skullCountCleared += sk
 					}
 					if blockCount >= 3 {
 						blocksAboveThree++
@@ -806,7 +841,7 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 	for i := 0; i < GRID_WIDTH; i++ {
 		heightBonus += highestPositions[i]
 	}
-	heightBonus = heightBonus / 6
+	heightBonus = int (float32(heightBonus) / 6.0)
 
 	// average Groupd size
 	if groupCount > 0 {
@@ -824,16 +859,19 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 	//     node.grid.print("Initial")
 	//     tempGrid.print("altered")
 	// }
-	chainExpected := 4
+	chainExpected := g_chainDepression
 	chainScore := 1 - (chainCount - chainExpected) * (chainCount - chainExpected)
-	actualScore = chainScore * 100 + averageChainBlock * 50 // + blocksAboveThree
-	finalScore = actualScore + heightBonus + (averageNeighbouringBlockCount - 3)
+	actualScore = chainScore * 100 + averageChainBlock * 200 + skullCountCleared * 100 * chainCount // + blocksAboveThree
+	finalScore = actualScore + heightBonus*30 + ((averageNeighbouringBlockCount-3))
 
 	// Update node
 	node.score = finalScore
 	node.chainCount = chainCount
 	node.grid = tempGrid
 	node.invalid = false
+	if node.chainCount > 0 {
+		node.message = fmt.Sprintf("Go! Go! Gadget Chain x%d", node.chainCount)
+	}
 
 
 	// Back propagate the score
@@ -859,23 +897,23 @@ func highPosition(grid Grid) [GRID_WIDTH]int {
 	return positions
 }
 
-func positionBlockInGridWithY(grid *Grid, leftX int, rightX int, rotation int, colourA int, colourB int, leftY int, rightY int) (int, int){
+func positionBlockInGridWithY(grid *Grid, leftX int, rightX int, rotation int, colourA int, colourB int, leftY int, rightY int) (int, int) {
 
-	if rotation == 0  {
+	if rotation == 0 {
 		indexA := leftX + leftY * GRID_WIDTH
 		indexB := rightX + rightY * GRID_WIDTH
 		grid[indexA] = colourA
 		grid[indexB] = colourB
 
 		return leftY, rightY
-	} else if rotation == 2  {
+	} else if rotation == 2 {
 		indexB := leftX + leftY * GRID_WIDTH
 		indexA := rightX + rightY * GRID_WIDTH
 		grid[indexA] = colourA
 		grid[indexB] = colourB
 
 		return rightY, leftY
-	} else if rotation == 1  {
+	} else if rotation == 1 {
 		indexB := leftX + (leftY - 1) * GRID_WIDTH
 		indexA := rightX + leftY * GRID_WIDTH
 		grid[indexA] = colourA
@@ -905,7 +943,7 @@ func (grid *Grid) findChainCount() ([8][2]int, int) {
 			var x int = i % GRID_WIDTH
 			var y int = i / GRID_WIDTH
 			if grid[i] > 0  && visited[i] == 0 {
-				c, blockCount := findConnectedBlocks(grid, x, y, &visited)
+				c, blockCount, _ := findConnectedBlocks(grid, x, y, &visited)
 				if blockCount >= 4 {
 					clearInfo[chainCount + thisCount] = [2]int{c, blockCount}
 					thisCount ++

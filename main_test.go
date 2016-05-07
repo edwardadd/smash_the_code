@@ -21,7 +21,7 @@ func TestFloodFill(t *testing.T) {
 		EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE,
 	}
 	var visited Grid
-	colour, count := findConnectedBlocks(&grid, 0, 0, &visited)
+	colour, count, _ := findConnectedBlocks(&grid, 0, 0, &visited)
 
 	if colour != 1 {
 		t.Fatalf("Incorrect colour")
@@ -62,7 +62,7 @@ func TestFloodFillWithSkulls(t *testing.T) {
 		EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE,
 	}
 	var visited Grid
-	colour, count := findConnectedBlocks(&grid, 1, 1, &visited)
+	colour, count, _ := findConnectedBlocks(&grid, 1, 1, &visited)
 
 	if colour != 1 {
 		t.Fatalf("Incorrect colour")
@@ -602,7 +602,7 @@ func TestFloodFill1(t *testing.T) {
 		EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE,
 		1, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE, EMPTY_SPACE,
 	}
-	colour, count := findConnectedBlocks(&grid, 0, 11, &visited)
+	colour, count, _ := findConnectedBlocks(&grid, 0, 11, &visited)
 
 	if colour != 1 {
 		t.Fatalf("Wrong colour - %d, expected %d", colour, 1)
@@ -630,7 +630,7 @@ func TestFloodFillFull(t *testing.T) {
 		1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1,
 	}
-	colour, count := findConnectedBlocks(&grid, 0, 0, &visited)
+	colour, count, _ := findConnectedBlocks(&grid, 0, 0, &visited)
 
 	if colour != 1 {
 		t.Fatalf("Wrong colour - %d, expected %d", colour, 1)
