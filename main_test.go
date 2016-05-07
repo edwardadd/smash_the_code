@@ -150,7 +150,7 @@ func TestSimulate(t *testing.T) {
 		turn:1,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{1, 2},
 		{1, 2},
 		{1, 2},
@@ -207,7 +207,7 @@ func TestSimulateAndDrop(t *testing.T) {
 		turn:1,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{1, 2},
 		{1, 2},
@@ -250,7 +250,7 @@ func TestShouldStopExploringWhenNoMoreRoom(t *testing.T) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},
@@ -286,7 +286,7 @@ func benchmarkExploreDepth3(b *testing.B) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},
@@ -324,7 +324,7 @@ func benchmarkExploreDepth4(b *testing.B) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},
@@ -362,7 +362,7 @@ func benchmarkExploreDepth5(b *testing.B) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},
@@ -378,7 +378,7 @@ func benchmarkExploreDepth5(b *testing.B) {
 	}
 }
 
-func exploreToDepth(node *Node, nextBlocks [8][2]int, depth int) {
+func exploreToDepth(node *Node, nextBlocks [8][2]uint8, depth int) {
 
 	for n := 0; n < 22; n++ {
 		explore(n, node, 0, depth, &nextBlocks, 1)
@@ -406,7 +406,7 @@ func BenchmarkExploreDepthFirst20000(b *testing.B) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},
@@ -446,7 +446,7 @@ func BenchmarkExploreDepthFirst15000(b *testing.B) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},
@@ -486,7 +486,7 @@ func BenchmarkExploreDepthFirst10000(b *testing.B) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},
@@ -526,7 +526,7 @@ func BenchmarkExploreDepthFirst5000(b *testing.B) {
 		turn:0,
 		grid:grid,
 	}
-	var nextBlocks [8][2]int = [8][2]int{
+	var nextBlocks [8][2]uint8 = [8][2]uint8{
 		{5, 3},
 		{3, 2},
 		{2, 1},

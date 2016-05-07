@@ -11,9 +11,9 @@ import (
 const (
 	GRID_WIDTH  int = 6
 	GRID_HEIGHT int = 12
-	SAMPLES     int = 2000
+	SAMPLES     int = 3500
 	DEPTH       int = 8
-	EMPTY_SPACE     = '.' - 48
+	EMPTY_SPACE     = 255
 )
 
 var ErrNoMoreSpace = errors.New("No more space!")
@@ -28,7 +28,8 @@ var g_data [22][2]int = [22][2]int{
 	{5, 1}, {5, 2}, {5, 3},
 }
 
-var colourString [5]string = [5]string{
+var colourString [6]string = [6]string{
+	"Skull",
 	"Blue",
 	"Green",
 	"Pink",
@@ -40,7 +41,7 @@ var g_invalidate bool = false
 
 var g_chainDepression = 4
 
-type Grid [GRID_WIDTH * GRID_HEIGHT]int
+type Grid [GRID_WIDTH * GRID_HEIGHT]uint8
 
 type Node struct {
 	choice       int
@@ -60,13 +61,13 @@ type Node struct {
 }
 
 type Stats struct {
-	nextHistogram         [5]int
-	playerGridHistogram   [5]int
-	maximumPossibleChains [5]int
+	nextHistogram         [5]uint8
+	playerGridHistogram   [5]uint8
+	maximumPossibleChains [5]uint8
 }
 
 type Game struct {
-	nextColours [8][2]int
+	nextColours [8][2]uint8
 	playerGrid  Grid
 	cpuGrid     Grid
 	turn        int
@@ -99,6 +100,7 @@ func (game *Game) gameLoop() {
 	rand.Seed(643)
 
 	for {
+		fmt.Fprintln(os.Stderr, "Turn: ", game.turn)
 		//parseStart := time.Now()
 		parseNextBlocks(&game.nextColours)
 		parseGrid(&game.playerGrid)
@@ -144,7 +146,13 @@ func (game *Game) gameLoop() {
 		//elapsed := time.Since(start)
 		//fmt.Fprintln(os.Stderr, "Timer: ", elapsed)
 
-		//printTree(game.node, 1)
+//         if game.turn >= 27 {
+//             game.playerGrid.print("Current Grid")
+//             for _, node := range game.node.nodes {
+// 			    node.print()
+// 			}
+// 		  //  printTree(game.node, 3)
+// 	    }
 
 		//find choice with greatest score
 
@@ -215,7 +223,7 @@ func (game *Game) analyseNextColours() {
 	// fmt.Fprintln(os.Stderr, "PGrid", game.playerGrid)
 
 	// histogram of colours
-	var histogram [5]int
+	var histogram [5]uint8
 
 	for _, colours := range game.nextColours {
 		for _, colour := range colours {
@@ -225,7 +233,7 @@ func (game *Game) analyseNextColours() {
 
 	game.stats.nextHistogram = histogram
 
-	histogram = [5]int{0, 0, 0, 0, 0}
+	histogram = [5]uint8{0, 0, 0, 0, 0}
 	for _, colour := range game.playerGrid {
 		if colour > 0 {
 			histogram[colour-1]++
@@ -258,14 +266,14 @@ func skullAttack(oldGrid *Grid, newGrid *Grid) bool {
 		}
 	}
 
-	return count > 5
+	return count > 0
 }
 
-func parseNextBlocks(nextColours *[8][2]int) {
+func parseNextBlocks(nextColours *[8][2]uint8) {
 	for i := 0; i < 8; i++ {
 		// colorA: color of the first block
 		// colorB: color of the attached block
-		var colorA, colorB int
+		var colorA, colorB uint8
 		fmt.Scan(&colorA, &colorB)
 		nextColours[i][0] = colorA
 		nextColours[i][1] = colorB
@@ -278,8 +286,13 @@ func parseGrid(grid *Grid) {
 		fmt.Scan(&row)
 
 		for j := 0; j < 6; j++ {
-			value := int(row[j])
-			grid[i*GRID_WIDTH+j] = value - 48
+			if row[j] == '.' {
+				grid[i*GRID_WIDTH+j] = EMPTY_SPACE
+			} else {
+
+				value := uint8(row[j])
+				grid[i*GRID_WIDTH+j] = value - 48
+			}
 		}
 	}
 }
@@ -302,7 +315,7 @@ func (grid *Grid) applyGravity() {
 		var lastFilled int = GRID_HEIGHT - 1
 		for y := GRID_HEIGHT - 1; y >= 0; y-- {
 			index := x + y*GRID_WIDTH
-			if grid[index] > EMPTY_SPACE {
+			if grid[index] != EMPTY_SPACE {
 				// check above
 				if lastFilled-y > 0 {
 					// drop
@@ -321,7 +334,7 @@ func (grid *Grid) applyGravity() {
 	// fmt.Fprintf(os.Stderr, "applyGravity Done\n")
 }
 
-func countConnectedBlocks(grid Grid, x int, y int, visited *Grid) (foundColour int, count int) {
+func countConnectedBlocks(grid Grid, x int, y int, visited *Grid) (foundColour uint8, count int) {
 	// fmt.Fprintf(os.Stderr, "findConnectedBlocks at %d, %d\n", x, y)
 	initialIndex := x + y*GRID_WIDTH
 	if grid[initialIndex] == EMPTY_SPACE || grid[initialIndex] == 0 {
@@ -332,7 +345,7 @@ func countConnectedBlocks(grid Grid, x int, y int, visited *Grid) (foundColour i
 
 	var stack [GRID_WIDTH * GRID_HEIGHT]int
 	var si, ci int = 0, 0
-	var colour int = grid[initialIndex]
+	var colour uint8 = grid[initialIndex]
 
 	stack[si] = initialIndex
 	si++
@@ -383,7 +396,7 @@ func countConnectedBlocks(grid Grid, x int, y int, visited *Grid) (foundColour i
 	return colour, ci
 }
 
-func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (int, int, int) {
+func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (uint8, int, int) {
 	// fmt.Fprintf(os.Stderr, "findConnectedBlocks at %d, %d\n", x, y)
 	initialIndex := x + y*GRID_WIDTH
 	if originalGrid[initialIndex] == EMPTY_SPACE || originalGrid[initialIndex] == 0 {
@@ -396,7 +409,7 @@ func findConnectedBlocks(originalGrid *Grid, x int, y int, visited *Grid) (int, 
 	var mappedToVisit map[int]bool = map[int]bool{}
 	var stack [GRID_WIDTH * GRID_HEIGHT]int
 	var si, ci int = 0, 0
-	var colour int = grid[initialIndex]
+	var colour uint8 = grid[initialIndex]
 	var skullCount int = 0
 
 	stack[si] = initialIndex
@@ -565,7 +578,7 @@ func (grid *Grid) print(title string) {
 }
 
 func (node *Node) print() {
-	fmt.Fprintf(os.Stderr, "T:%02d C:%02d S:%02d p/r %d,%d\n", node.turn, node.choice, node.score, node.position, node.rotation)
+	fmt.Fprintf(os.Stderr, "T:%02d C:%02d S:%02d p/r %d,%d - %d - err %v\n", node.turn, node.choice, node.score, node.position, node.rotation, node.invalid, node.err)
 }
 
 func printTree(node *Node, depth int) {
@@ -611,7 +624,7 @@ func betterChoice() int {
 /////////////////////////////////// FREQUENTLY TWEAKED ////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *[8][2]int, exploreType int) error {
+func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *[8][2]uint8, exploreType int) error {
 	// fmt.Fprintf(os.Stderr, "Explore Turn %d - %d\n", currentTurn, node.turn)
 	var newNode *Node = nil
 
@@ -678,11 +691,15 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 			//	}
 			//}
 
-			for {
+			for i := 0; i < 3; i++{
 				err := explore(betterChoice(), newNode, currentTurn, maxDepth, nextBlocks, exploreType)
 				if err == nil {
 					break
 				}
+				
+			    if newNode.turn - currentTurn < 4 {
+			        return err
+			    }
 			}
 		}
 	case 1:
@@ -696,7 +713,7 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 	return nil
 }
 
-func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
+func simulate(node *Node, currentTurn int, nextBlocks *[8][2]uint8) error {
 	var leftX, rightX int
 
 	if node.invalid {
@@ -729,7 +746,7 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 	var highestPositions [GRID_WIDTH]int = highPosition(node.grid)
 
 	if node.rotation == 0 || node.rotation == 2 {
-		if highestPositions[leftX] == EMPTY_SPACE || highestPositions[rightX] == EMPTY_SPACE {
+		if highestPositions[leftX] == -1 || highestPositions[rightX] == -1 {
 			return ErrNoMoreSpace
 		}
 	} else {
@@ -803,11 +820,11 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 			for i := 0; i < GRID_WIDTH*GRID_HEIGHT; i++ {
 				var x int = i % GRID_WIDTH
 				var y int = i / GRID_WIDTH
-				if tempGrid[i] > 0 && visited[i] == 0 {
+				if tempGrid[i] > 0 && tempGrid[i] <= 5 && visited[i] == 0 {
 					c, blockCount, sk := findConnectedBlocks(&tempGrid, x, y, &visited)
 					if blockCount >= 4 {
 						chainThisStep = true
-						node.message = fmt.Sprintf(" Can Clear %s", colourString[c-1])
+						node.message = fmt.Sprintf(" Can Clear %s", colourString[c])
 						averageChainBlock += blockCount
 						skullCountCleared += sk
 					}
@@ -857,10 +874,14 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 	//     node.grid.print("Initial")
 	//     tempGrid.print("altered")
 	// }
+	var chainSoonAs int = 0
+	if node.invalid {
+		chainSoonAs = chainCount * (8 - next) * 1000
+	}
 	chainExpected := g_chainDepression
 	chainScore := 1 - (chainCount-chainExpected)*(chainCount-chainExpected)
-	actualScore = chainScore*100*(8-next) + averageChainBlock*chainCount*10 + skullCountCleared*100*chainCount // + blocksAboveThree
-	finalScore = actualScore + heightBonus*30 + (averageNeighbouringBlockCount - 3)
+	actualScore = chainScore*10*(8-next) + averageChainBlock*chainCount*50 + skullCountCleared*200*chainCount // + blocksAboveThree
+	finalScore = chainSoonAs + actualScore + heightBonus*60 + (averageNeighbouringBlockCount - 3) * 10
 
 	// Update node
 	node.score = finalScore
@@ -880,7 +901,7 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]int) error {
 func highPosition(grid Grid) [GRID_WIDTH]int {
 	var positions [GRID_WIDTH]int
 	for x := 0; x < GRID_WIDTH; x++ {
-		positions[x] = EMPTY_SPACE
+		positions[x] = -1
 
 		for y := GRID_HEIGHT - 1; y >= 0; y-- {
 			index := x + y*GRID_WIDTH
@@ -894,7 +915,7 @@ func highPosition(grid Grid) [GRID_WIDTH]int {
 	return positions
 }
 
-func positionBlockInGridWithY(grid *Grid, leftX int, rightX int, rotation int, colourA int, colourB int, leftY int, rightY int) (int, int) {
+func positionBlockInGridWithY(grid *Grid, leftX int, rightX int, rotation int, colourA uint8, colourB uint8, leftY int, rightY int) (int, int) {
 
 	if rotation == 0 {
 		indexA := leftX + leftY*GRID_WIDTH
@@ -927,37 +948,37 @@ func positionBlockInGridWithY(grid *Grid, leftX int, rightX int, rotation int, c
 	}
 }
 
-func (grid *Grid) findChainCount() ([8][2]int, int) {
-	var chainCount int
-	var clearInfo [8][2]int
-
-	for {
-		//find connected blocks and continue
-		var thisCount int = 0
-		var visited Grid
-
-		for i := 0; i < GRID_WIDTH*GRID_HEIGHT; i++ {
-			var x int = i % GRID_WIDTH
-			var y int = i / GRID_WIDTH
-			if grid[i] > 0 && visited[i] == 0 {
-				c, blockCount, _ := findConnectedBlocks(grid, x, y, &visited)
-				if blockCount >= 4 {
-					clearInfo[chainCount+thisCount] = [2]int{c, blockCount}
-					thisCount++
-				}
-			}
-		}
-
-		if thisCount == 0 {
-			break
-		}
-
-		chainCount += thisCount
-		grid.applyGravity()
-	}
-
-	return clearInfo, chainCount
-}
+//func (grid *Grid) findChainCount() ([8][2]int, int) {
+//	var chainCount int
+//	var clearInfo [8][2]int
+//
+//	for {
+//		//find connected blocks and continue
+//		var thisCount int = 0
+//		var visited Grid
+//
+//		for i := 0; i < GRID_WIDTH*GRID_HEIGHT; i++ {
+//			var x int = i % GRID_WIDTH
+//			var y int = i / GRID_WIDTH
+//			if grid[i] > 0 && visited[i] == 0 {
+//				c, blockCount, _ := findConnectedBlocks(grid, x, y, &visited)
+//				if blockCount >= 4 {
+//					clearInfo[chainCount+thisCount] = [2]int{c, blockCount}
+//					thisCount++
+//				}
+//			}
+//		}
+//
+//		if thisCount == 0 {
+//			break
+//		}
+//
+//		chainCount += thisCount
+//		grid.applyGravity()
+//	}
+//
+//	return clearInfo, chainCount
+//}
 
 func (node *Node) backPropagateScore() {
 	var parent *Node = node.parent
