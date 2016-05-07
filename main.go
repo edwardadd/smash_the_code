@@ -146,7 +146,7 @@ func (game *Game) gameLoop() {
 		//elapsed := time.Since(start)
 		//fmt.Fprintln(os.Stderr, "Timer: ", elapsed)
 
-//         if game.turn >= 27 {
+//         if game.turn >= 9 {
 //             game.playerGrid.print("Current Grid")
 //             for _, node := range game.node.nodes {
 // 			    node.print()
@@ -631,8 +631,8 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 	if node.nodes[choice] != nil {
 		// fmt.Fprintf(os.Stderr, "Already explored Turn %d - %d, score %d\n", currentTurn, node.turn, node.nodes[choice].score)
 		newNode = node.nodes[choice]
-
-		if newNode.invalid || newNode.turnExplored != currentTurn {
+		
+		if newNode.invalid /* || newNode.turnExplored != currentTurn */ {
 			newNode.grid = node.grid
 			newNode.score = 0
 			newNode.message = ""
@@ -691,16 +691,8 @@ func explore(choice int, node *Node, currentTurn int, maxDepth int, nextBlocks *
 			//	}
 			//}
 
-			for i := 0; i < 3; i++{
-				err := explore(betterChoice(), newNode, currentTurn, maxDepth, nextBlocks, exploreType)
-				if err == nil {
-					break
-				}
-				
-			    if newNode.turn - currentTurn < 4 {
-			        return err
-			    }
-			}
+			err := explore(betterChoice(), newNode, currentTurn, maxDepth, nextBlocks, exploreType)
+			return err
 		}
 	case 1:
 		if newNode.turn-currentTurn < maxDepth {
