@@ -11,7 +11,7 @@ import (
 const (
 	GRID_WIDTH  int = 6
 	GRID_HEIGHT int = 12
-	SAMPLES     int = 3500
+	SAMPLES     int = 2000
 	DEPTH       int = 8
 	EMPTY_SPACE     = 255
 )
@@ -820,7 +820,7 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]uint8) error {
 						averageChainBlock += blockCount
 						skullCountCleared += sk
 					}
-					if blockCount >= 3 {
+					if blockCount == 3 {
 						blocksAboveThree++
 					}
 					if blockCount > 0 {
@@ -860,6 +860,37 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]uint8) error {
 
 		averageChainBlock = 0
 	}
+	var averageStacked int = 0
+	var prevColour uint8 = EMPTY_SPACE
+	var prevColourCount int = 1
+	var colourGroups int = 1
+	for x := 0; x < GRID_WIDTH; x++ {
+		prevColourCount = 1
+		prevColour = tempGrid[x + 0 * GRID_WIDTH]
+		for y := 1; y < GRID_HEIGHT; y++ {
+			if tempGrid[x + y * GRID_WIDTH] == prevColour {
+				prevColourCount ++
+			} else {
+				averageStacked += prevColourCount
+				colourGroups ++
+				prevColour = tempGrid[x + y * GRID_WIDTH]
+				prevColourCount = 1
+			}
+		}
+	}
+
+	averageStacked = averageStacked / colourGroups
+
+	var totalColours = 0
+	for i := 0; i < GRID_WIDTH * GRID_HEIGHT; i++ {
+		col := tempGrid[i]
+		if col != EMPTY_SPACE && col != 0 {
+			totalColours ++
+		}
+	}
+
+	var groupColoursUp int = int(float64(totalColours) / float64(groupCount))
+
 
 	// if chainCount > 0 {
 	//     fmt.Fprintf(os.Stderr, "Now %d Turn %d, chainCount %d \n", currentTurn, node.turn, chainCount)
@@ -871,9 +902,14 @@ func simulate(node *Node, currentTurn int, nextBlocks *[8][2]uint8) error {
 		chainSoonAs = chainCount * (8 - next) * 1000
 	}
 	chainExpected := g_chainDepression
-	chainScore := 1 - (chainCount-chainExpected)*(chainCount-chainExpected)
-	actualScore = chainScore*10*(8-next) + averageChainBlock*chainCount*50 + skullCountCleared*200*chainCount // + blocksAboveThree
-	finalScore = chainSoonAs + actualScore + heightBonus*60 + (averageNeighbouringBlockCount - 3) * 10
+	chainScore := 2 - (chainCount-chainExpected)*(chainCount-chainExpected)
+	actualScore = chainCount * (chainScore*10 + averageChainBlock*chainCount*100 + skullCountCleared*200*chainCount)
+
+	if chainCount > 0 {
+		finalScore = chainSoonAs + actualScore
+	} else {
+		finalScore = blocksAboveThree * groupColoursUp + averageStacked + 100 + heightBonus * 60 + (averageStacked * averageNeighbouringBlockCount - 3) * 10
+	}
 
 	// Update node
 	node.score = finalScore
